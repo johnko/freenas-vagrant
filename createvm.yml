@@ -1,0 +1,84 @@
+#
+# Copyright (c) 2016, Michael Mattsson
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+# 
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of resthome nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+---
+
+- hosts: localhost
+  vars_files:
+    - vars_local.yml
+  
+  tasks: 
+  - name: "Download ISO"
+    command: "curl https://download.freenas.org/11/latest/x64/FreeNAS-11.1-U6.iso -o {{ ansible_env.PWD }}/freenas.iso"
+    args:
+      creates: "{{ ansible_env.PWD }}/freenas.iso"
+    tags: createvm
+
+  - name: "Create FreeNAS VM"
+    command: "vboxmanage createvm --name freenas --basefolder {{ ansible_env.PWD }} --ostype FreeBSD_64 --register"
+    args:
+      creates: "{{ ansible_env.PWD }}/freenas/freenas.vbox"
+    tags: createvm
+
+  - name: "Modify FreeNAS VM properties"
+    command: "vboxmanage modifyvm freenas --memory 8192 --vram 9 --cpus 2 --boot1 dvd --boot2 disk --boot3 none --boot4 none --nic1 nat --nictype1 82540EM --cableconnected1 on"
+    tags: createvm
+
+  - name: "Attach a storage controller"
+    command: "vboxmanage storagectl freenas --name SATA --add sata"
+    tags: createvm
+
+  - name: "Create hdd sda"
+    command: "vboxmanage createmedium disk --filename {{ ansible_env.PWD }}/freenas/sda.vdi --size 10000"
+    args:
+      creates: "{{ ansible_env.PWD }}/freenas/sda.vdi"
+    tags: createvm
+
+  - name: "Create hdd sdb"
+    command: "vboxmanage createmedium disk --filename {{ ansible_env.PWD }}/freenas/sdb.vdi --size 10000"
+    args:
+      creates: "{{ ansible_env.PWD }}/freenas/sdb.vdi"
+    tags: createvm
+
+  - name: "Attach dvd to storage controller"
+    command: "vboxmanage storageattach freenas --storagectl SATA --port 0 --type dvddrive --medium {{ ansible_env.PWD }}/freenas.iso"
+    tags: createvm
+
+  - name: "Attach hdd sda to storage controller"
+    command: "vboxmanage storageattach freenas --storagectl SATA --port 1 --type hdd --medium {{ ansible_env.PWD }}/freenas/sda.vdi"
+    tags: createvm
+
+  - name: "Attach hdd sdb to storage controller"
+    command: "vboxmanage storageattach freenas --storagectl SATA --port 2 --type hdd --medium {{ ansible_env.PWD }}/freenas/sdb.vdi"
+    tags: createvm
+
+  - name: Boot it up
+    command: "vboxmanage startvm freenas --type headless"
+    tags: createvm

@@ -1,3 +1,5 @@
+# DEPRECATED in favour of https://github.com/johnko/packer-freenas/
+
 # FreeNAS 9.10 Vagrant Box
 Source files to build a FreeNAS 9.10 Vagrant box
 
